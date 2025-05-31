@@ -1,0 +1,54 @@
+version: "2"
+repoSecrets:
+- keys: ["gcp-daci-lmdh-dev", "gcp-daci-lmdh-stg", "gcp-daci-lmdh-prd"]
+  format: json
+- keys: ["git_user", "git_token"]
+  format: text
+
+steps:
+- name: sonarqube-scan
+  template: loci-pyspark-3-8-with-scan
+  parameters:
+    - name: buildCMD
+      value: "ls -ltr"
+    - name: SONAR_PROJECTNAME
+      value: "{{parameters.stash-project-name}}/{{parameters.repo-name}}"
+    - name: SONAR_PARAMS
+      value: "-Dsonar.branch.name={{parameters.revision}}"
+    - name: SONAR_PROPERTIES_FILE
+      value: "-Dproject.settings=sonar-project.properties"
+
+- name: gcs-upload-feature
+  template: loci-google-sdk-361-0
+  parameters:
+  - name: buildCMD
+    value: "chmod 777 dag_sync/feature_dags.config && chmod 777 loci/deploy.sh && ./loci/deploy.sh {{parameters.secret-path}}/gcp-daci-lmdh-dev gcp-daci-lmdh-dev daci-lmdh-code-dev us-east4-daci-lmdh-comp-dev-270cdb22-bucket svc-daci-lmdh-dev-de@gcp-daci-lmdh-dev.iam.gserviceaccount.com {{parameters.revision}} dag_sync/feature_dags.config $git_user $git_token feature"
+  when:
+    branch:
+    - feature-DCMT-[0-9]{4,5}-*
+
+- name: gcs-upload-stage
+  template: loci-google-sdk-361-0
+  parameters:
+  - name: buildCMD
+    value: "chmod 777 loci/deploy.sh && ./loci/deploy.sh {{parameters.secret-path}}/gcp-daci-lmdh-stg gcp-daci-lmdh-stg daci-lmdh-code-stg us-east4-daci-lmdh-comp-stg-49880dc0-bucket svc-daci-lmdh-stg-de@gcp-daci-lmdh-stg.iam.gserviceaccount.com {{parameters.revision}} dag_sync/stage_dags.config $git_user $git_token staging"
+  when:
+    branch:
+    - staging
+
+- name: gcs-upload-prod
+  template: loci-google-sdk-361-0
+  parameters:
+  - name: buildCMD
+    value: "chmod 777 loci/deploy.sh && ./loci/deploy.sh {{parameters.secret-path}}/gcp-daci-lmdh-prd gcp-daci-lmdh-prd daci-lmdh-code-prd us-east4-daci-lmdh-comp-prd-4da200a7-bucket svc-daci-lmdh-prd-de@gcp-daci-lmdh-prd.iam.gserviceaccount.com {{parameters.revision}} dag_sync/prod_dags.config $git_user $git_token production"
+  when:
+    branch:
+    - master
+
+notify:
+  failure:
+    notificationType: email
+    toList: DL-GO-LMDH-MARKETING@lowes.com
+    body: >
+      Dear User, <br> <br>Your LOCI build to {{parameters.revision}} branch has been failed at {{parameters.event}} event. Please refer to the LEC logs for further information. <br> <br> Thank You, <br> LMDH LOCI Alerts
+    subject: "LOCI Build Failure in {{parameters.revision}} branch : Build - {{parameters.build-number}}"

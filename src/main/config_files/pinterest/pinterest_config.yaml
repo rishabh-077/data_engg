@@ -1,0 +1,6 @@
+---
+pinterest_lormn_campaign: daci_lmdh_wrk.pinterest_lormn_campaign
+pinterest_non_lormn_campaign: daci_media_mrkt_silver.pinterest_enterprise_measurement_data_daily
+mktsc_pinterest_summary: daci_lmdh_wrk.mktsc_pinterest_summary
+fiscal_calendar: daci_lmdh_gold.fiscal_calendar
+write_mode: overwrite
